@@ -54,7 +54,7 @@ class Choice(models.Model):
 
 
 class QuizAttempt(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='quiz_attempts')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='quiz_attempts', null=True, blank=True)
     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name='attempts')
     score = models.PositiveIntegerField(default=0)
     total = models.PositiveIntegerField(default=0)

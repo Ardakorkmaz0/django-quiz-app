@@ -1,4 +1,5 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from .models import Quiz, Question, Choice
@@ -16,8 +17,7 @@ def quizapp_home(request):
         'quizzes': quizzes,
     })
 
-def addquiz(request):
-    return render(request, 'quiz/addquiz.html', {'active_page': 'addquiz'})
+
 
 def register(request):
     if request.method == 'POST':
@@ -44,6 +44,7 @@ def logout(request):
     auth_logout(request)
     return redirect('quiz:login')
 
+@login_required
 def profile(request):
     created_quizzes = request.user.quizzes.all()
     attempts = request.user.quiz_attempts.all().order_by('-completed_at')
@@ -70,7 +71,7 @@ def addquiz(request):
 
 @login_required
 def add_question(request, quiz_id):
-    quiz = Quiz.objects.get(id=quiz_id, created_by=request.user)
+    quiz = get_object_or_404(Quiz, id=quiz_id, created_by=request.user)
     if request.method == 'POST':
         form = QuestionForm(request.POST)
         if form.is_valid():
@@ -97,7 +98,7 @@ def add_question(request, quiz_id):
 
 @login_required
 def edit_choices(request, question_id):
-    question = Question.objects.get(id=question_id, quiz__created_by=request.user)
+    question = get_object_or_404(Question, id=question_id, quiz__created_by=request.user)
     quiz = question.quiz
 
     if request.method == 'POST':
@@ -133,12 +134,12 @@ def edit_choices(request, question_id):
     })
 
 def quiz_detail(request, quiz_id):
-    quiz = Quiz.objects.get(id=quiz_id)
+    quiz = get_object_or_404(Quiz, id=quiz_id)
     return render(request, 'quiz/quiz_detail.html', {'quiz': quiz})
 
 
 def take_quiz(request, quiz_id):
-    quiz = Quiz.objects.get(id=quiz_id)
+    quiz = get_object_or_404(Quiz, id=quiz_id)
     questions = quiz.questions.all()
 
     if request.method == 'POST':
@@ -159,9 +160,18 @@ def take_quiz(request, quiz_id):
             if is_correct:
                 score += 1
 
+            user_choice_text = user_answer
+            if question.question_type != 'fillblank' and user_answer:
+                try:
+                    user_choice_obj = question.choices.get(id=user_answer)
+                    user_choice_text = user_choice_obj.text
+                except:
+                    user_choice_text = user_answer
+
             results.append({
                 'question': question,
                 'user_answer': user_answer,
+                'user_choice_text': user_choice_text,
                 'correct_answer': correct,
                 'is_correct': is_correct,
             })
@@ -173,8 +183,15 @@ def take_quiz(request, quiz_id):
                 score=score,
                 total=total,
             )
+        else:
+            QuizAttempt.objects.create(
+                user=None,
+                quiz=quiz,
+                score=score,
+                total=total,
+            )
 
-        return render(request, 'quiz/quiz_results.html', {
+        return render(request, 'quiz/take_quiz_results.html', {
             'quiz': quiz,
             'results': results,
             'score': score,
@@ -188,11 +205,35 @@ def take_quiz(request, quiz_id):
     })
 
 
+def check_answer_api(request, question_id):
+    if request.method == 'POST':
+        import json
+        data = json.loads(request.body)
+        user_answer = data.get('answer', '').strip()
+        question = get_object_or_404(Question, id=question_id)
+        
+        correct = question.choices.filter(is_correct=True).first()
+        is_correct = False
+        correct_text = ""
+        
+        if correct:
+            if question.question_type == 'fillblank':
+                is_correct = (user_answer.lower() == correct.text.lower())
+                correct_text = correct.text
+            else:
+                is_correct = (user_answer == str(correct.id))
+                correct_text = correct.text
+                
+        return JsonResponse({
+            'is_correct': is_correct,
+            'correct_answer': correct_text
+        })
+    return JsonResponse({'error': 'Invalid request'}, status=400)
 
 
 @login_required
 def quiz_results(request, quiz_id):
-    quiz = Quiz.objects.get(id=quiz_id, created_by=request.user)
+    quiz = get_object_or_404(Quiz, id=quiz_id, created_by=request.user)
     attempts = quiz.attempts.all().order_by('-completed_at')
     avg = attempts.aggregate(avg=Avg('score'))['avg'] or 0
     total = quiz.questions.count()

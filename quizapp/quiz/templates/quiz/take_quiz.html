@@ -33,11 +33,110 @@
                 </div>
                 {% endfor %}
                 {% endif %}
+                {% if quiz.result_mode == 'instant' %}
+                <button type="button" class="btn btn-sm btn-outline-info mt-3" onclick="checkAnswer('{{ question.id }}', '{{ question.question_type }}', this)">Check</button>
+                <div id="feedback_{{ question.id }}" class="mt-2" style="font-weight: bold;"></div>
+                {% endif %}
             </div>
         </div>
         {% endfor %}
 
-        <button type="submit" class="btn btn-primary btn-lg w-100" style="padding: 12px;">Submit</button>
+        <button type="submit" class="btn btn-primary btn-lg w-100" style="padding: 12px;">
+            {% if quiz.result_mode == 'instant' %}Finish Quiz{% else %}Submit{% endif %}
+        </button>
     </form>
 </div>
+
+{% if quiz.result_mode == 'instant' %}
+<script>
+    async function checkAnswer(questionId, qType, btn) {
+        let userAnswer = null;
+        
+        if (qType === 'fillblank') {
+            const input = document.querySelector(`input[name="question_${questionId}"]`);
+            if (!input.value) {
+                alert("Please enter an answer.");
+                return;
+            }
+            userAnswer = input.value.trim();
+        } else {
+            const checked = document.querySelector(`input[name="question_${questionId}"]:checked`);
+            if (!checked) {
+                alert("Please select an option.");
+                return;
+            }
+            userAnswer = checked.value;
+        }
+
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+        try {
+            const response = await fetch(`/quiz/api/check_answer/${questionId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ 'answer': userAnswer })
+            });
+            const data = await response.json();
+            
+            let isCorrect = data.is_correct;
+            let correctText = data.correct_answer;
+
+            if (qType === 'fillblank') {
+                const input = document.querySelector(`input[name="question_${questionId}"]`);
+                if (isCorrect) {
+                    input.classList.add('is-valid');
+                    input.classList.remove('is-invalid');
+                } else {
+                    input.classList.add('is-invalid');
+                    input.classList.remove('is-valid');
+                }
+                input.readOnly = true;
+            } else {
+                const allInputs = document.querySelectorAll(`input[name="question_${questionId}"]`);
+                allInputs.forEach(input => {
+                    const label = document.querySelector(`label[for="${input.id}"]`);
+                    if (isCorrect && input.checked) {
+                        label.style.color = '#198754';
+                        label.style.fontWeight = 'bold';
+                    } else if (!isCorrect && input.checked) {
+                        label.style.color = '#dc3545';
+                    }
+                    if (!isCorrect && !input.checked && input.nextElementSibling.textContent.trim() === correctText) {
+                        label.style.color = '#198754';
+                        label.style.fontWeight = 'bold';
+                    }
+                    input.onclick = function(e) { e.preventDefault(); };
+                    input.style.pointerEvents = 'none';
+                });
+            }
+            
+            btn.textContent = "Checked";
+            
+            const feedback = document.getElementById(`feedback_${questionId}`);
+            if (isCorrect) {
+                feedback.innerHTML = '<span class="text-success"><i class="bi bi-check-circle-fill"></i> Correct!</span>';
+            } else {
+                if (correctText) {
+                    feedback.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle-fill"></i> Incorrect. Correct Answer: ${correctText}</span>`;
+                } else {
+                    feedback.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle-fill"></i> Incorrect.</span>';
+                }
+            }
+
+        } catch (error) {
+            console.error("Error:", error);
+            btn.disabled = false;
+            btn.textContent = "Check";
+            alert("An error occurred while connecting to the system.");
+        }
+    }
+</script>
+{% endif %}
 {% endblock %}
