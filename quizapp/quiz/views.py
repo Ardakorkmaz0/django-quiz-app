@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.db.models import Q, Avg
 from django.http import JsonResponse
 from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
@@ -11,10 +12,18 @@ from django.db.models import Avg
 
 
 def quizapp_home(request):
-    quizzes = Quiz.objects.all().order_by('-created_at')
+    query = request.GET.get('q', '')
+    if query:
+        quizzes = Quiz.objects.filter(
+            Q(title__icontains=query) | Q(description__icontains=query)
+        ).order_by('-created_at')
+    else:
+        quizzes = Quiz.objects.all().order_by('-created_at')
+        
     return render(request, 'quiz/quizapp_home.html', {
         'active_page': 'home',
         'quizzes': quizzes,
+        'query': query,
     })
 
 
@@ -46,12 +55,24 @@ def logout(request):
 
 @login_required
 def profile(request):
+    query = request.GET.get('q', '')
+    
     created_quizzes = request.user.quizzes.all()
     attempts = request.user.quiz_attempts.all().order_by('-completed_at')
+    
+    if query:
+        created_quizzes = created_quizzes.filter(
+            Q(title__icontains=query) | Q(description__icontains=query)
+        )
+        attempts = attempts.filter(
+            Q(quiz__title__icontains=query) | Q(quiz__description__icontains=query)
+        )
+        
     return render(request, 'quiz/profile.html', {
         'active_page': 'profile',
         'created_quizzes': created_quizzes,
         'attempts': attempts,
+        'query': query,
     })
 
 
@@ -233,7 +254,11 @@ def check_answer_api(request, question_id):
 
 @login_required
 def quiz_results(request, quiz_id):
-    quiz = get_object_or_404(Quiz, id=quiz_id, created_by=request.user)
+    quiz = get_object_or_404(Quiz, id=quiz_id)
+    if quiz.created_by != request.user and not request.user.is_superuser:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+        
     attempts = quiz.attempts.all().order_by('-completed_at')
     avg = attempts.aggregate(avg=Avg('score'))['avg'] or 0
     total = quiz.questions.count()
@@ -243,3 +268,18 @@ def quiz_results(request, quiz_id):
         'attempts': attempts,
         'avg_score': avg_score,
     })
+
+
+@login_required
+def delete_quiz(request, quiz_id):
+    quiz = get_object_or_404(Quiz, id=quiz_id)
+    
+    if quiz.created_by != request.user and not request.user.is_superuser:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+        
+    if request.method == 'POST':
+        quiz.delete()
+        return redirect('quiz:quizapp_home')
+        
+    return redirect('quiz:quiz_detail', quiz_id=quiz.id)

@@ -15,8 +15,24 @@
         {% endif %}
     </div>
 
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-8">
+            <form action="{% url 'quiz:quizapp_home' %}" method="GET" class="d-flex align-items-center bg-white shadow-sm rounded-pill overflow-hidden border">
+                <div class="px-4 text-muted"><i class="bi bi-search"></i></div>
+                <input type="text" name="q" class="form-control border-0 py-3 shadow-none" placeholder="Search for quizzes by title or keyword..." value="{{ query|default:'' }}" style="background: transparent;">
+                <button type="submit" class="btn btn-primary px-4 py-3 fw-bold" style="border-radius: 0;">Search</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 style="font-weight: 600;" class="mb-0">{% if query %}Search Results for "{{ query }}"{% else %}Recent Quizzes{% endif %}</h5>
+        {% if query %}
+        <a href="{% url 'quiz:quizapp_home' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Clear Search</a>
+        {% endif %}
+    </div>
+
     {% if quizzes %}
-    <h5 class="mb-3" style="font-weight: 600;">Recent Quizzes</h5>
     <div class="row">
         {% for quiz in quizzes %}
         <div class="col-md-4 mb-3">
@@ -48,7 +64,13 @@
     </div>
     {% else %}
     <div class="text-center mt-5">
+        <h4 class="text-muted"><i class="bi bi-search mb-3" style="font-size: 3rem;"></i></h4>
+        {% if query %}
+        <p class="text-muted" style="font-size: 1.1rem;">No quizzes found matching "<strong>{{ query }}</strong>".</p>
+        <a href="{% url 'quiz:quizapp_home' %}" class="btn btn-outline-primary mt-2">Clear Search</a>
+        {% else %}
         <p class="text-muted" style="font-size: 1.1rem;">No quizzes yet. Be the first to create one!</p>
+        {% endif %}
     </div>
     {% endif %}
 

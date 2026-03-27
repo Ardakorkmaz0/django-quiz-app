@@ -9,6 +9,19 @@
             <p class="text-muted mb-0">Member since {{ user.date_joined|date:"M d, Y" }}</p>
         </div>
     </div>
+    
+    <form action="{% url 'quiz:profile' %}" method="GET" class="d-flex align-items-center bg-white shadow-sm rounded-pill overflow-hidden border mb-4">
+        <div class="px-4 text-muted"><i class="bi bi-search"></i></div>
+        <input type="text" name="q" class="form-control border-0 py-2 shadow-none" placeholder="Search your quizzes or attempts..." value="{{ query|default:'' }}" style="background: transparent;">
+        <button type="submit" class="btn btn-primary px-4 py-2 fw-bold" style="border-radius: 0;">Search</button>
+    </form>
+    
+    {% if query %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0 text-muted">Search Results for "{{ query }}"</h6>
+        <a href="{% url 'quiz:profile' %}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">Clear Search</a>
+    </div>
+    {% endif %}
 
     <ul class="nav nav-tabs mb-3" id="profileTabs" role="tablist">
         <li class="nav-item" role="presentation">
@@ -44,7 +57,7 @@
             </a>
             {% endfor %}
             {% else %}
-            <p class="text-muted text-center mt-3">You haven't created any quizzes yet.</p>
+            <p class="text-muted text-center mt-3">{% if query %}No matching quizzes found.{% else %}You haven't created any quizzes yet.{% endif %}</p>
             {% endif %}
         </div>
 
@@ -65,7 +78,7 @@
             </div>
             {% endfor %}
             {% else %}
-            <p class="text-muted text-center mt-3">You haven't attempted any quizzes yet.</p>
+            <p class="text-muted text-center mt-3">{% if query %}No matching attempts found.{% else %}You haven't attempted any quizzes yet.{% endif %}</p>
             {% endif %}
         </div>
 
