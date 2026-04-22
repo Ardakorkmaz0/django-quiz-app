@@ -22,8 +22,8 @@ A simple and interactive quiz application built with Django. Users can create cu
 
 1. **Clone the repository:**
    ```bash
-   git clone <repo-url>
-   cd DjangoQuiz
+   git clone https://github.com/Ardakorkmaz0/django-quiz-app.git
+   cd django-quiz-app
    ```
 
 2. **Create and activate a virtual environment:**
