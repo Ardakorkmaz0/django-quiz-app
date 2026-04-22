@@ -2,6 +2,12 @@
 
 A simple and interactive quiz application built with Django. Users can create custom quizzes, add different types of questions, and take quizzes created by others.
 
+## Screenshot
+
+<img width="1280" height="800" alt="image" src="https://github.com/user-attachments/assets/1aa3dc5f-f7ab-43b8-a623-d4fb3011a492" />
+
+
+
 ## Features
 
 - **User Authentication:** Register, Login, and Logout functionality.
